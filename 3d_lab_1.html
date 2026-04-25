@@ -1,0 +1,1913 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>3D Lab (Educational, Login-Free) — Ultra Complex Single-File</title>
+
+  <!--
+    Educational-only 3D Lab.
+    Uses modern ES module imports with Import Maps for Three.js (no bundler needed). [1](https://sbcode.net/threejs/importmap/)[2](https://github.com/aerovfx/inphysicidea/blob/dev/docs/llms.txt)
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --panel:#0f1626cc;
+      --panel2:#111b2fcc;
+      --text:#e9eefc;
+      --muted:#a9b4d0;
+      --accent:#7c5cff;
+      --accent2:#20d3ff;
+      --danger:#ff3b6b;
+      --ok:#32d583;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+      --radius: 16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(124,92,255,.25), transparent 60%),
+                  radial-gradient(900px 700px at 90% 20%, rgba(32,211,255,.15), transparent 55%),
+                  radial-gradient(900px 700px at 50% 90%, rgba(50,213,131,.10), transparent 55%),
+                  var(--bg);
+      overflow:hidden;
+    }
+    #app{
+      height:100%;
+      display:grid;
+      grid-template-rows: 56px 1fr 36px;
+      grid-template-columns: 320px 1fr 360px;
+      grid-template-areas:
+        "top top top"
+        "left viewport right"
+        "bottom bottom bottom";
+      gap:10px;
+      padding:10px;
+    }
+    .topbar{
+      grid-area: top;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    .dot{
+      width:12px; height:12px; border-radius:50%;
+      background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--ok), var(--accent));
+      box-shadow: 0 0 20px rgba(124,92,255,.35);
+    }
+    .subtitle{
+      font-size:12px;
+      color:var(--muted);
+      font-weight:600;
+    }
+    .top-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    button, select, input[type="number"], input[type="text"], input[type="range"], input[type="color"]{
+      font-family:var(--sans);
+    }
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:8px 10px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .08s ease, background .15s ease, border-color .15s ease, opacity .2s;
+      box-shadow: 0 6px 16px rgba(0,0,0,.25);
+      font-weight:650;
+      font-size:12px;
+    }
+    .btn:hover{background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.18)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{background: rgba(124,92,255,.20); border-color: rgba(124,92,255,.35)}
+    .btn.primary:hover{background: rgba(124,92,255,.28)}
+    .btn.danger{background: rgba(255,59,107,.15); border-color: rgba(255,59,107,.35)}
+    .btn.danger:hover{background: rgba(255,59,107,.22)}
+    .btn.ok{background: rgba(50,213,131,.12); border-color: rgba(50,213,131,.28)}
+    .btn.ok:hover{background: rgba(50,213,131,.18)}
+    .pill{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color:var(--muted);
+      font-weight:650;
+    }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .panel h3{
+      margin:0;
+      padding:12px 12px 8px;
+      font-size:13px;
+      letter-spacing:.2px;
+    }
+    .panel .content{
+      padding:10px 12px 12px;
+      overflow:auto;
+      min-height:0;
+    }
+    .panel .section{
+      margin-top:10px;
+      padding:10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .panel .section:first-child{margin-top:0}
+    .row{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      align-items:center;
+      margin:8px 0;
+    }
+    .row2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      align-items:center;
+      margin:8px 0;
+    }
+    label{
+      font-size:12px;
+      color: var(--muted);
+      font-weight:650;
+    }
+    .field{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .input, select{
+      width:100%;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      color:var(--text);
+      border-radius: 12px;
+      padding:8px 10px;
+      outline:none;
+      font-size:12px;
+    }
+    select{cursor:pointer}
+    input[type="range"]{width:100%}
+    input[type="color"]{
+      width:42px; height:34px; border-radius: 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      padding:0;
+      cursor:pointer;
+    }
+    .hint{
+      font-size:11px;
+      color: rgba(233,238,252,.7);
+      line-height:1.35;
+    }
+    .mono{
+      font-family:var(--mono);
+      font-size:11px;
+      color: rgba(233,238,252,.75);
+      white-space:pre-wrap;
+    }
+
+    #left{grid-area:left}
+    #right{grid-area:right}
+    #viewportWrap{
+      grid-area: viewport;
+      position:relative;
+      border-radius: var(--radius);
+      overflow:hidden;
+      background: #070a12;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: var(--shadow);
+      min-height:0;
+    }
+    #viewport{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    #overlayTopLeft{
+      position:absolute;
+      top:10px; left:10px;
+      display:flex; gap:8px; flex-wrap:wrap;
+      z-index:10;
+      pointer-events:none;
+    }
+    .chip{
+      pointer-events:none;
+      padding:6px 10px;
+      border-radius: 999px;
+      background: rgba(15,22,38,.68);
+      border:1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(8px);
+      font-size:12px;
+      color: rgba(233,238,252,.85);
+      box-shadow: 0 8px 22px rgba(0,0,0,.35);
+      display:flex;
+      gap:8px; align-items:center;
+    }
+    #dropzone{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.55);
+      z-index:50;
+      border: 2px dashed rgba(124,92,255,.6);
+    }
+    #dropzone .box{
+      width:min(520px, 92%);
+      background: rgba(15,22,38,.85);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+      padding:18px;
+      text-align:center;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    #dropzone .box strong{font-size:16px}
+    #dropzone .box p{margin:10px 0 0; color:var(--muted); font-weight:650}
+
+    .bottom{
+      grid-area: bottom;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:6px 12px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(10px);
+      color: rgba(233,238,252,.8);
+      font-size:12px;
+      box-shadow: var(--shadow);
+      gap:12px;
+    }
+    .kbd{
+      font-family:var(--mono);
+      font-size:11px;
+      padding:2px 6px;
+      border-radius: 8px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      color: rgba(233,238,252,.85);
+    }
+    .status-ok{color: rgba(50,213,131,.95); font-weight:750}
+    .status-warn{color: rgba(255,210,102,.95); font-weight:750}
+    .status-bad{color: rgba(255,59,107,.95); font-weight:750}
+
+    .tree{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .treeItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:8px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      cursor:pointer;
+      user-select:none;
+    }
+    .treeItem:hover{background: rgba(255,255,255,.06)}
+    .treeItem.active{
+      border-color: rgba(124,92,255,.45);
+      background: rgba(124,92,255,.14);
+    }
+    .tag{
+      font-family:var(--mono);
+      font-size:10px;
+      padding:2px 6px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color: rgba(233,238,252,.75);
+    }
+    .small{
+      font-size:11px;
+      color: rgba(233,238,252,.75);
+      line-height:1.35;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div class="topbar">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div class="brand"><span class="dot"></span> 3D Lab</div>
+        <div class="subtitle">Educational-only • Login-free • Single-file • Model sandbox</div>
+        <span class="pill" id="fpsPill">FPS: —</span>
+      </div>
+      <div class="top-actions">
+        <button class="btn ok" id="btnScreenshot">Screenshot</button>
+        <button class="btn" id="btnCenter">Frame Selected</button>
+        <button class="btn" id="btnResetCam">Reset Camera</button>
+        <button class="btn danger" id="btnRebuild">REBUILD / Reset Lab</button>
+      </div>
+    </div>
+
+    <div id="left" class="panel">
+      <h3>Models & Tools</h3>
+      <div class="content">
+
+        <div class="section">
+          <div class="row">
+            <label>Sample Model</label>
+            <select id="sampleSelect" class="input">
+              <option value="helmet">Damaged Helmet (glTF/GLB)</option>
+              <option value="lantern">Lantern (glTF)</option>
+              <option value="duck">Duck (glTF)</option>
+              <option value="boombox">BoomBox (glTF)</option>
+              <option value="primitive_box">Primitive: Box</option>
+              <option value="primitive_sphere">Primitive: Sphere</option>
+              <option value="primitive_torus">Primitive: Torus Knot</option>
+            </select>
+          </div>
+          <div class="row2">
+            <button class="btn primary" id="btnLoadSample">Load Sample</button>
+            <button class="btn" id="btnClearModels">Clear Models</button>
+          </div>
+          <div class="hint">
+            You can also drag & drop <span class="kbd">.glb</span>, <span class="kbd">.gltf</span>, <span class="kbd">.obj</span> files onto the viewport.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Upload Model(s)</label>
+            <input id="fileInput" class="input" type="file" multiple
+                   accept=".glb,.gltf,.obj,.bin,.mtl,image/*,.jpg,.jpeg,.png,.webp" />
+          </div>
+          <div class="hint">
+            For <span class="kbd">.gltf</span> + textures, select the .gltf and its related files together (textures/.bin).
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Mode</label>
+            <select id="modeSelect" class="input">
+              <option value="select">Select</option>
+              <option value="move">Transform: Move</option>
+              <option value="rotate">Transform: Rotate</option>
+              <option value="scale">Transform: Scale</option>
+              <option value="measure">Measure (2 clicks)</option>
+              <option value="clip">Clipping Plane (drag slider)</option>
+            </select>
+          </div>
+          <div class="row2">
+            <button class="btn" id="btnToggleGrid">Grid: ON</button>
+            <button class="btn" id="btnToggleAxes">Axes: ON</button>
+          </div>
+          <div class="row2">
+            <button class="btn" id="btnToggleOutline">Outline: ON</button>
+            <button class="btn" id="btnToggleAutoRotate">Auto-rotate: OFF</button>
+          </div>
+          <div class="row2">
+            <button class="btn" id="btnToggleWire">Wireframe: OFF</button>
+            <button class="btn" id="btnToggleNormals">Normals: OFF</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Animation</label>
+            <select id="animSelect" class="input" disabled>
+              <option value="">(none)</option>
+            </select>
+          </div>
+          <div class="row2">
+            <button class="btn" id="btnPlayPause" disabled>Play</button>
+            <button class="btn" id="btnStopAnim" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <label>Speed</label>
+            <div class="field">
+              <input id="animSpeed" type="range" min="0" max="2" step="0.01" value="1" />
+              <span class="tag" id="animSpeedVal">1.00×</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Notes</label>
+            <div class="mono">
+- Left-click: select
+- Drag: orbit (Select mode)
+- Shift + drag: pan
+- Mouse wheel: zoom
+- Transform modes: use gizmo
+- Measure: click two points
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="viewportWrap">
+      <canvas id="viewport"></canvas>
+
+      <div id="overlayTopLeft">
+        <div class="chip" id="chipSelection">Selection: <span class="tag" id="selName">—</span></div>
+        <div class="chip" id="chipMode">Mode: <span class="tag" id="modeTag">select</span></div>
+        <div class="chip" id="chipHint"><span class="tag">Educational Only</span></div>
+      </div>
+
+      <div id="dropzone">
+        <div class="box">
+          <strong>Drop your 3D files here</strong>
+          <p>.glb / .gltf / .obj (+textures) • No login • Runs locally</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="right" class="panel">
+      <h3>Inspector</h3>
+      <div class="content">
+
+        <div class="section">
+          <div class="row">
+            <label>Scene Tree</label>
+            <button class="btn" id="btnRefreshTree">Refresh</button>
+          </div>
+          <div class="tree" id="tree"></div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Selected Object</label>
+            <span class="tag" id="selType">—</span>
+          </div>
+
+          <div class="row">
+            <label>Name</label>
+            <input id="objName" class="input" type="text" placeholder="(no selection)" disabled />
+          </div>
+
+          <div class="row2">
+            <div>
+              <label>Pos X</label>
+              <input id="px" class="input" type="number" step="0.01" disabled />
+            </div>
+            <div>
+              <label>Pos Y</label>
+              <input id="py" class="input" type="number" step="0.01" disabled />
+            </div>
+          </div>
+          <div class="row2">
+            <div>
+              <label>Pos Z</label>
+              <input id="pz" class="input" type="number" step="0.01" disabled />
+            </div>
+            <div>
+              <label>Scale</label>
+              <input id="ps" class="input" type="number" step="0.01" disabled />
+            </div>
+          </div>
+
+          <div class="row2">
+            <button class="btn" id="btnDelete" disabled>Delete</button>
+            <button class="btn" id="btnDuplicate" disabled>Duplicate</button>
+          </div>
+
+          <div class="row">
+            <label>Material Override</label>
+            <select id="matMode" class="input" disabled>
+              <option value="keep">Keep Original</option>
+              <option value="standard">MeshStandardMaterial</option>
+              <option value="physical">MeshPhysicalMaterial</option>
+              <option value="lambert">MeshLambertMaterial</option>
+              <option value="basic">MeshBasicMaterial</option>
+            </select>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label>Color</label>
+              <div class="field">
+                <input id="matColor" type="color" value="#b7c2ff" disabled />
+                <span class="tag" id="matColorHex">#b7c2ff</span>
+              </div>
+            </div>
+            <div>
+              <label>Metal/Rough</label>
+              <div class="field" style="flex-direction:column;align-items:stretch">
+                <input id="metal" type="range" min="0" max="1" step="0.01" value="0.1" disabled />
+                <input id="rough" type="range" min="0" max="1" step="0.01" value="0.6" disabled />
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Info</label>
+            <div class="small" id="objInfo">—</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Lighting</label>
+            <span class="tag">PBR</span>
+          </div>
+
+          <div class="row">
+            <label>HDR Environment</label>
+            <select id="envSelect" class="input">
+              <option value="venice">Venice Sunset (HDR)</option>
+              <option value="neutral">Neutral Studio (HDR)</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <label>Exposure</label>
+            <div class="field">
+              <input id="exposure" type="range" min="0.1" max="2.5" step="0.01" value="1.0" />
+              <span class="tag" id="exposureVal">1.00</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Ambient Intensity</label>
+            <div class="field">
+              <input id="ambI" type="range" min="0" max="3" step="0.01" value="0.6" />
+              <span class="tag" id="ambIVal">0.60</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Directional Intensity</label>
+            <div class="field">
+              <input id="dirI" type="range" min="0" max="8" step="0.01" value="2.0" />
+              <span class="tag" id="dirIVal">2.00</span>
+            </div>
+          </div>
+
+          <div class="row2">
+            <button class="btn" id="btnToggleShadows">Shadows: ON</button>
+            <button class="btn" id="btnToggleBg">Background: ON</button>
+          </div>
+
+          <div class="hint">
+            HDR environment lighting uses the PMREM workflow (prefiltered env maps) for realistic reflections in PBR materials. [5](https://www.ramijames.com/learn-threejs/lighting/environment-maps)[6](https://threejs.org/examples/webgl_materials_envmaps_hdr.html)
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Clipping Plane</label>
+            <span class="tag" id="clipVal">0.00</span>
+          </div>
+          <input id="clipSlider" type="range" min="-2" max="2" step="0.01" value="0" />
+          <div class="hint">Enable “Clipping Plane” mode, then adjust slider to slice the selected model.</div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <label>Diagnostics</label>
+            <button class="btn" id="btnDump">Dump JSON</button>
+          </div>
+          <div class="mono" id="diag">
+Ready.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div>
+        <span class="status-ok" id="statusDot">●</span>
+        <span id="statusText">Idle</span>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <span class="kbd">Drag&Drop</span> <span class="kbd">Shift</span> <span class="kbd">Click</span>
+        <span class="kbd">W/E/R</span> transform
+        <span class="kbd">Esc</span> detach
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+  import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+  import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+  import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
+  import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+  import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+  import Stats from 'three/addons/libs/stats.module.js';
+
+  // Loaders:
+  import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; // glTF loader [3](https://threejs.org/docs/pages/GLTFLoader.html)[4](https://zalo.github.io/three.js/docs/examples/en/loaders/GLTFLoader.html)
+  import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+  import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+  // Some Three.js versions rename RGBELoader -> HDRLoader. We'll dynamically try both. [7](https://sbcode.net/threejs/environment-maps/)
+  async function importHDRLoader(){
+    try{
+      const mod = await import('three/addons/loaders/RGBELoader.js');
+      return mod.RGBELoader;
+    }catch(e){
+      try{
+        const mod2 = await import('three/addons/loaders/HDRLoader.js');
+        return mod2.HDRLoader;
+      }catch(e2){
+        return null;
+      }
+    }
+  }
+
+  // ---------- DOM ----------
+  const canvas = document.getElementById('viewport');
+  const viewportWrap = document.getElementById('viewportWrap');
+  const dropzone = document.getElementById('dropzone');
+
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const diag = document.getElementById('diag');
+
+  const fpsPill = document.getElementById('fpsPill');
+
+  const sampleSelect = document.getElementById('sampleSelect');
+  const btnLoadSample = document.getElementById('btnLoadSample');
+  const btnClearModels = document.getElementById('btnClearModels');
+
+  const fileInput = document.getElementById('fileInput');
+
+  const modeSelect = document.getElementById('modeSelect');
+  const modeTag = document.getElementById('modeTag');
+
+  const btnToggleGrid = document.getElementById('btnToggleGrid');
+  const btnToggleAxes = document.getElementById('btnToggleAxes');
+  const btnToggleOutline = document.getElementById('btnToggleOutline');
+  const btnToggleAutoRotate = document.getElementById('btnToggleAutoRotate');
+  const btnToggleWire = document.getElementById('btnToggleWire');
+  const btnToggleNormals = document.getElementById('btnToggleNormals');
+
+  const animSelect = document.getElementById('animSelect');
+  const btnPlayPause = document.getElementById('btnPlayPause');
+  const btnStopAnim = document.getElementById('btnStopAnim');
+  const animSpeed = document.getElementById('animSpeed');
+  const animSpeedVal = document.getElementById('animSpeedVal');
+
+  const btnScreenshot = document.getElementById('btnScreenshot');
+  const btnCenter = document.getElementById('btnCenter');
+  const btnResetCam = document.getElementById('btnResetCam');
+  const btnRebuild = document.getElementById('btnRebuild');
+
+  const tree = document.getElementById('tree');
+  const btnRefreshTree = document.getElementById('btnRefreshTree');
+
+  const selName = document.getElementById('selName');
+  const selType = document.getElementById('selType');
+
+  const objName = document.getElementById('objName');
+  const px = document.getElementById('px');
+  const py = document.getElementById('py');
+  const pz = document.getElementById('pz');
+  const ps = document.getElementById('ps');
+  const btnDelete = document.getElementById('btnDelete');
+  const btnDuplicate = document.getElementById('btnDuplicate');
+
+  const matMode = document.getElementById('matMode');
+  const matColor = document.getElementById('matColor');
+  const matColorHex = document.getElementById('matColorHex');
+  const metal = document.getElementById('metal');
+  const rough = document.getElementById('rough');
+  const objInfo = document.getElementById('objInfo');
+
+  const envSelect = document.getElementById('envSelect');
+  const exposure = document.getElementById('exposure');
+  const exposureVal = document.getElementById('exposureVal');
+  const ambI = document.getElementById('ambI');
+  const ambIVal = document.getElementById('ambIVal');
+  const dirI = document.getElementById('dirI');
+  const dirIVal = document.getElementById('dirIVal');
+  const btnToggleShadows = document.getElementById('btnToggleShadows');
+  const btnToggleBg = document.getElementById('btnToggleBg');
+
+  const clipSlider = document.getElementById('clipSlider');
+  const clipVal = document.getElementById('clipVal');
+
+  const btnDump = document.getElementById('btnDump');
+
+  // ---------- State ----------
+  const state = {
+    grid: true,
+    axes: true,
+    outline: true,
+    autoRotate: false,
+    wireframe: false,
+    normals: false,
+    shadows: true,
+    background: true,
+    mode: 'select',
+    selected: null,
+    modelRoots: [],
+    mixers: [],
+    activeMixer: null,
+    activeAction: null,
+    activeClip: null,
+    clips: [],
+    clipPlaneEnabled: false,
+    clipPlane: new THREE.Plane(new THREE.Vector3(1,0,0), 0),
+    measure: {
+      active: false,
+      p1: null,
+      p2: null,
+      line: null,
+      label: null
+    },
+    lastFrameTime: performance.now(),
+    fpsSMA: [],
+    envMap: null
+  };
+
+  function setStatus(text, level='ok'){
+    statusText.textContent = text;
+    statusDot.className = level === 'ok' ? 'status-ok' : level === 'warn' ? 'status-warn' : 'status-bad';
+  }
+  function logDiag(text){
+    diag.textContent = (diag.textContent + '\n' + text).slice(-4000);
+    diag.scrollTop = diag.scrollHeight;
+  }
+
+  // ---------- Renderer / Scene ----------
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(viewportWrap.clientWidth, viewportWrap.clientHeight, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = parseFloat(exposure.value);
+  renderer.shadowMap.enabled = state.shadows;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  // Clipping (disabled unless mode is clip)
+  renderer.localClippingEnabled = true;
+  renderer.clippingPlanes = [];
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070a12);
+
+  const camera = new THREE.PerspectiveCamera(55, viewportWrap.clientWidth/viewportWrap.clientHeight, 0.01, 2000);
+  camera.position.set(2.6, 1.6, 3.2);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
+
+  // Transform controls
+  const tControls = new TransformControls(camera, renderer.domElement);
+  tControls.setSize(0.8);
+  tControls.addEventListener('dragging-changed', (e)=>{ controls.enabled = !e.value; });
+  scene.add(tControls);
+
+  // Base lights (plus optional HDR env)
+  const ambient = new THREE.AmbientLight(0xffffff, parseFloat(ambI.value));
+  scene.add(ambient);
+
+  const dir = new THREE.DirectionalLight(0xffffff, parseFloat(dirI.value));
+  dir.position.set(5, 7, 3);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048, 2048);
+  dir.shadow.camera.near = 0.5;
+  dir.shadow.camera.far = 50;
+  dir.shadow.camera.left = -10;
+  dir.shadow.camera.right = 10;
+  dir.shadow.camera.top = 10;
+  dir.shadow.camera.bottom = -10;
+  scene.add(dir);
+
+  // Helpers
+  const grid = new THREE.GridHelper(20, 20, 0x334155, 0x1f2a44);
+  grid.material.opacity = 0.55;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  const axes = new THREE.AxesHelper(1.25);
+  scene.add(axes);
+
+  // Floor to catch shadows
+  const floorGeo = new THREE.PlaneGeometry(30, 30);
+  const floorMat = new THREE.ShadowMaterial({ opacity: 0.22 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI/2;
+  floor.position.y = 0;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // ---------- Postprocessing: Outline + FXAA ----------
+  const composer = new EffectComposer(renderer);
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
+
+  const outlinePass = new OutlinePass(
+    new THREE.Vector2(viewportWrap.clientWidth, viewportWrap.clientHeight),
+    scene,
+    camera
+  );
+  outlinePass.edgeStrength = 3.0;
+  outlinePass.edgeGlow = 0.6;
+  outlinePass.edgeThickness = 1.2;
+  outlinePass.visibleEdgeColor.set(0x7c5cff);
+  outlinePass.hiddenEdgeColor.set(0x20d3ff);
+  composer.addPass(outlinePass);
+
+  const fxaaPass = new ShaderPass(FXAAShader);
+  composer.addPass(fxaaPass);
+
+  // ---------- Stats ----------
+  const stats = new Stats();
+  stats.showPanel(0);
+  stats.dom.style.position = 'absolute';
+  stats.dom.style.right = '10px';
+  stats.dom.style.top = '10px';
+  stats.dom.style.zIndex = '12';
+  viewportWrap.appendChild(stats.dom);
+
+  // ---------- Raycasting / Selection ----------
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+
+  function setSelected(obj){
+    state.selected = obj;
+    outlinePass.selectedObjects = (state.outline && obj) ? [obj] : [];
+    selName.textContent = obj ? (obj.name || obj.parent?.name || obj.type) : '—';
+    selType.textContent = obj ? obj.type : '—';
+
+    const enabled = !!obj;
+    for(const el of [objName, px, py, pz, ps, btnDelete, btnDuplicate, matMode, matColor, metal, rough]){
+      el.disabled = !enabled;
+    }
+
+    if(obj){
+      objName.value = obj.name || '';
+      const p = obj.position;
+      px.value = p.x.toFixed(3);
+      py.value = p.y.toFixed(3);
+      pz.value = p.z.toFixed(3);
+      ps.value = obj.scale.x.toFixed(3);
+
+      // Basic info: bounds
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      objInfo.textContent = `Bounds: ${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)} | Center: ${box.getCenter(new THREE.Vector3()).toArray().map(n=>n.toFixed(2)).join(', ')}`;
+    }else{
+      objInfo.textContent = '—';
+    }
+
+    // Attach/detach transform controls based on mode
+    if(['move','rotate','scale'].includes(state.mode) && obj){
+      tControls.attach(obj);
+    }else{
+      tControls.detach();
+    }
+  }
+
+  function pickObject(clientX, clientY){
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+
+    // Intersect model roots only (not helpers)
+    const candidates = [];
+    for(const root of state.modelRoots){
+      root.traverse(o=>{
+        if(o.isMesh) candidates.push(o);
+      });
+    }
+    const hits = raycaster.intersectObjects(candidates, true);
+    return hits[0] || null;
+  }
+
+  // ---------- Measurement Tool ----------
+  const measureMat = new THREE.LineBasicMaterial({ color: 0x20d3ff });
+  const measurePointsGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+
+  function clearMeasurement(){
+    if(state.measure.line) scene.remove(state.measure.line);
+    state.measure = { active:false, p1:null, p2:null, line:null, label:null };
+  }
+  function updateMeasurementLine(){
+    if(!state.measure.p1 || !state.measure.p2) return;
+    if(!state.measure.line){
+      state.measure.line = new THREE.Line(measurePointsGeo.clone(), measureMat);
+      scene.add(state.measure.line);
+    }
+    const g = state.measure.line.geometry;
+    g.setFromPoints([state.measure.p1, state.measure.p2]);
+    g.computeBoundingSphere();
+  }
+
+  // ---------- Model Loading ----------
+  const gltfLoader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/libs/draco/');
+  gltfLoader.setDRACOLoader(draco);
+
+  const objLoader = new OBJLoader();
+
+  function addModelRoot(root, name='Model'){
+    root.name = name;
+    root.traverse(o=>{
+      if(o.isMesh){
+        o.castShadow = true;
+        o.receiveShadow = true;
+        if(o.material){
+          o.material.side = THREE.FrontSide;
+        }
+      }
+    });
+    scene.add(root);
+    state.modelRoots.push(root);
+
+    // Auto place on floor
+    const box = new THREE.Box3().setFromObject(root);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    root.position.sub(center); // center it at origin
+    // drop to floor
+    const box2 = new THREE.Box3().setFromObject(root);
+    const minY = box2.min.y;
+    root.position.y -= minY;
+
+    // scale to a comfortable size
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const target = 1.6;
+    const s = target / maxDim;
+    root.scale.setScalar(s);
+
+    refreshTree();
+    frameObject(root);
+    setSelected(findFirstMesh(root) || root);
+  }
+
+  function findFirstMesh(root){
+    let found = null;
+    root.traverse(o=>{ if(!found && o.isMesh) found = o; });
+    return found;
+  }
+
+  function clearModels(){
+    for(const root of state.modelRoots){
+      scene.remove(root);
+      root.traverse(o=>{
+        if(o.isMesh){
+          if(o.geometry) o.geometry.dispose?.();
+          if(o.material){
+            if(Array.isArray(o.material)){
+              o.material.forEach(m=>disposeMaterial(m));
+            }else disposeMaterial(o.material);
+          }
+        }
+      });
+    }
+    state.modelRoots = [];
+    setSelected(null);
+    clearMeasurement();
+    stopAnimations();
+    refreshTree();
+  }
+
+  function disposeMaterial(mat){
+    // Dispose textures commonly used by PBR
+    const maps = ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap','alphaMap','envMap'];
+    for(const k of maps){
+      if(mat[k]) mat[k].dispose?.();
+    }
+    mat.dispose?.();
+  }
+
+  async function loadSample(key){
+    setStatus('Loading sample…', 'warn');
+    logDiag(`Loading sample: ${key}`);
+
+    try{
+      if(key.startsWith('primitive_')){
+        const root = new THREE.Group();
+        let mesh;
+        if(key === 'primitive_box'){
+          mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(1,1,1),
+            new THREE.MeshStandardMaterial({ color: 0xb7c2ff, metalness: 0.1, roughness: 0.55 })
+          );
+        }else if(key === 'primitive_sphere'){
+          mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.75, 64, 64),
+            new THREE.MeshStandardMaterial({ color: 0x9ff0ff, metalness: 0.25, roughness: 0.35 })
+          );
+        }else{
+          mesh = new THREE.Mesh(
+            new THREE.TorusKnotGeometry(0.45, 0.14, 260, 28),
+            new THREE.MeshPhysicalMaterial({ color: 0xffc3d5, metalness: 0.35, roughness: 0.25, clearcoat: 0.7 })
+          );
+        }
+        root.add(mesh);
+        addModelRoot(root, key.replace('primitive_','Primitive '));
+        setStatus('Sample loaded.', 'ok');
+        return;
+      }
+
+      // Use public URLs (CORS). These are commonly used in Three.js demos.
+      const urls = {
+        helmet: 'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF-Binary/DamagedHelmet.glb',
+        lantern:'https://threejs.org/examples/models/gltf/Lantern/glTF/Lantern.gltf',
+        duck:   'https://threejs.org/examples/models/gltf/Duck/glTF/Duck.gltf',
+        boombox:'https://threejs.org/examples/models/gltf/BoomBox/glTF-Binary/BoomBox.glb'
+      };
+      const url = urls[key];
+      if(!url) throw new Error('Unknown sample key');
+
+      gltfLoader.load(
+        url,
+        (gltf)=>{
+          const root = gltf.scene || gltf.scenes?.[0];
+          if(!root) throw new Error('No scene in glTF');
+
+          // Animations
+          if(gltf.animations && gltf.animations.length){
+            setupAnimations(root, gltf.animations);
+          }else{
+            stopAnimations();
+          }
+
+          addModelRoot(root, `Sample: ${key}`);
+          setStatus('Sample loaded.', 'ok');
+        },
+        (xhr)=>{
+          if(xhr.total){
+            const pct = (xhr.loaded / xhr.total * 100).toFixed(1);
+            setStatus(`Loading… ${pct}%`, 'warn');
+          }else{
+            setStatus(`Loading… ${Math.round(xhr.loaded/1024)} KB`, 'warn');
+          }
+        },
+        (err)=>{
+          console.error(err);
+          setStatus('Failed to load sample.', 'bad');
+          logDiag('ERROR loading sample: ' + (err?.message || err));
+        }
+      );
+    }catch(e){
+      setStatus('Error loading sample.', 'bad');
+      logDiag('ERROR: ' + e.message);
+    }
+  }
+
+  // ---------- Upload handling (drag/drop or input) ----------
+  function showDrop(show){ dropzone.style.display = show ? 'flex' : 'none'; }
+
+  ;['dragenter','dragover'].forEach(ev=>{
+    window.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      showDrop(true);
+    });
+  });
+  ;['dragleave','drop'].forEach(ev=>{
+    window.addEventListener(ev, (e)=>{
+      e.preventDefault();
+      if(ev === 'dragleave'){
+        // avoid flicker
+        if(e.relatedTarget === null) showDrop(false);
+      }else{
+        showDrop(false);
+        const files = Array.from(e.dataTransfer.files || []);
+        if(files.length) handleFiles(files);
+      }
+    });
+  });
+
+  fileInput.addEventListener('change', ()=>{
+    const files = Array.from(fileInput.files || []);
+    handleFiles(files);
+    fileInput.value = '';
+  });
+
+  async function handleFiles(files){
+    setStatus(`Processing ${files.length} file(s)…`, 'warn');
+    logDiag(`Files selected: ${files.map(f=>f.name).join(', ')}`);
+
+    // Map by name for resolving .gltf dependencies
+    const fileMap = new Map(files.map(f=>[f.name, f]));
+
+    // If user provided a GLB, it's easiest:
+    const glbs = files.filter(f=>f.name.toLowerCase().endsWith('.glb'));
+    const gltfs = files.filter(f=>f.name.toLowerCase().endsWith('.gltf'));
+    const objs  = files.filter(f=>f.name.toLowerCase().endsWith('.obj'));
+
+    for(const f of glbs){
+      await loadGLBFromFile(f);
+    }
+    for(const f of gltfs){
+      await loadGLTFFromFile(f, fileMap);
+    }
+    for(const f of objs){
+      await loadOBJFromFile(f);
+    }
+
+    setStatus('Upload processing done.', 'ok');
+  }
+
+  function readAsArrayBuffer(file){
+    return new Promise((resolve,reject)=>{
+      const r = new FileReader();
+      r.onload = ()=> resolve(r.result);
+      r.onerror = ()=> reject(r.error);
+      r.readAsArrayBuffer(file);
+    });
+  }
+  function readAsText(file){
+    return new Promise((resolve,reject)=>{
+      const r = new FileReader();
+      r.onload = ()=> resolve(r.result);
+      r.onerror = ()=> reject(r.error);
+      r.readAsText(file);
+    });
+  }
+
+  async function loadGLBFromFile(file){
+    try{
+      setStatus(`Loading ${file.name}…`, 'warn');
+      const buf = await readAsArrayBuffer(file);
+      const blob = new Blob([buf], { type:'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+
+      await new Promise((resolve,reject)=>{
+        gltfLoader.load(url, (gltf)=>{
+          URL.revokeObjectURL(url);
+          const root = gltf.scene || gltf.scenes?.[0];
+          if(gltf.animations && gltf.animations.length){
+            setupAnimations(root, gltf.animations);
+          }else{
+            stopAnimations();
+          }
+          addModelRoot(root, file.name);
+          resolve();
+        }, undefined, (err)=>{
+          URL.revokeObjectURL(url);
+          reject(err);
+        });
+      });
+      setStatus(`${file.name} loaded.`, 'ok');
+    }catch(e){
+      setStatus(`Failed: ${file.name}`, 'bad');
+      logDiag('ERROR GLB: ' + e.message);
+    }
+  }
+
+  async function loadGLTFFromFile(gltfFile, fileMap){
+    // Create a fake "URL" resolver so GLTFLoader can request related files by name.
+    // We'll intercept requests by using LoadingManager URLModifier.
+    const manager = new THREE.LoadingManager();
+    const objectURLs = [];
+
+    manager.setURLModifier((url)=>{
+      // url can be something like "textures/albedo.png" — we match by filename
+      const clean = url.split('/').pop().split('\\').pop();
+      const match = fileMap.get(clean);
+      if(match){
+        const objUrl = URL.createObjectURL(match);
+        objectURLs.push(objUrl);
+        return objUrl;
+      }
+      return url;
+    });
+
+    const localGLTFLoader = new GLTFLoader(manager);
+    localGLTFLoader.setDRACOLoader(draco);
+
+    try{
+      setStatus(`Loading ${gltfFile.name}…`, 'warn');
+      const txt = await readAsText(gltfFile);
+      const blob = new Blob([txt], { type:'model/gltf+json' });
+      const url = URL.createObjectURL(blob);
+      objectURLs.push(url);
+
+      await new Promise((resolve,reject)=>{
+        localGLTFLoader.load(url, (gltf)=>{
+          const root = gltf.scene || gltf.scenes?.[0];
+          if(gltf.animations && gltf.animations.length){
+            setupAnimations(root, gltf.animations);
+          }else{
+            stopAnimations();
+          }
+          addModelRoot(root, gltfFile.name);
+          resolve();
+        }, undefined, reject);
+      });
+
+      setStatus(`${gltfFile.name} loaded.`, 'ok');
+    }catch(e){
+      setStatus(`Failed: ${gltfFile.name}`, 'bad');
+      logDiag('ERROR GLTF: ' + e.message);
+    }finally{
+      objectURLs.forEach(u=>URL.revokeObjectURL(u));
+    }
+  }
+
+  async function loadOBJFromFile(file){
+    try{
+      setStatus(`Loading ${file.name}…`, 'warn');
+      const txt = await readAsText(file);
+      const root = objLoader.parse(txt);
+      // Give a standard material if none
+      root.traverse(o=>{
+        if(o.isMesh){
+          if(!o.material){
+            o.material = new THREE.MeshStandardMaterial({ color: 0xb7c2ff, metalness: 0.1, roughness: 0.7 });
+          }
+        }
+      });
+      addModelRoot(root, file.name);
+      setStatus(`${file.name} loaded.`, 'ok');
+    }catch(e){
+      setStatus(`Failed: ${file.name}`, 'bad');
+      logDiag('ERROR OBJ: ' + e.message);
+    }
+  }
+
+  // ---------- Animations ----------
+  function stopAnimations(){
+    state.mixers.forEach(m=>m.stopAllAction());
+    state.mixers = [];
+    state.activeMixer = null;
+    state.activeAction = null;
+    state.activeClip = null;
+    state.clips = [];
+    animSelect.innerHTML = '<option value="">(none)</option>';
+    animSelect.disabled = true;
+    btnPlayPause.disabled = true;
+    btnStopAnim.disabled = true;
+    btnPlayPause.textContent = 'Play';
+  }
+
+  function setupAnimations(root, clips){
+    stopAnimations();
+    state.clips = clips;
+    const mixer = new THREE.AnimationMixer(root);
+    state.mixers.push(mixer);
+    state.activeMixer = mixer;
+
+    animSelect.innerHTML = '';
+    clips.forEach((c, i)=>{
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = `${i+1}: ${c.name || '(unnamed clip)'}`;
+      animSelect.appendChild(opt);
+    });
+    animSelect.disabled = false;
+    btnPlayPause.disabled = false;
+    btnStopAnim.disabled = false;
+
+    selectClip(0);
+  }
+
+  function selectClip(idx){
+    if(!state.activeMixer) return;
+    const clip = state.clips[idx];
+    if(!clip) return;
+
+    if(state.activeAction){
+      state.activeAction.stop();
+    }
+    state.activeClip = clip;
+    state.activeAction = state.activeMixer.clipAction(clip);
+    state.activeAction.reset();
+    state.activeAction.play();
+    state.activeAction.paused = true; // start paused until user hits play
+    btnPlayPause.textContent = 'Play';
+  }
+
+  animSelect.addEventListener('change', ()=>{
+    const idx = parseInt(animSelect.value || '0', 10);
+    selectClip(idx);
+  });
+
+  btnPlayPause.addEventListener('click', ()=>{
+    if(!state.activeAction) return;
+    const paused = state.activeAction.paused;
+    state.activeAction.paused = !paused;
+    btnPlayPause.textContent = paused ? 'Pause' : 'Play';
+  });
+
+  btnStopAnim.addEventListener('click', ()=>{
+    if(state.activeAction){
+      state.activeAction.stop();
+      state.activeAction.reset();
+      state.activeAction.paused = true;
+      btnPlayPause.textContent = 'Play';
+    }
+  });
+
+  animSpeed.addEventListener('input', ()=>{
+    const v = parseFloat(animSpeed.value);
+    animSpeedVal.textContent = v.toFixed(2) + '×';
+    if(state.activeMixer) state.activeMixer.timeScale = v;
+  });
+
+  // ---------- Environment (HDR) ----------
+  // HDR environment maps: use PMREMGenerator for realistic PBR reflections/lighting. [5](https://www.ramijames.com/learn-threejs/lighting/environment-maps)[6](https://threejs.org/examples/webgl_materials_envmaps_hdr.html)
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+
+  async function setEnvironment(kind){
+    // Clear
+    if(kind === 'off'){
+      scene.environment = null;
+      if(state.background) scene.background = new THREE.Color(0x070a12);
+      state.envMap = null;
+      setStatus('Environment OFF', 'ok');
+      return;
+    }
+
+    const HDRLoader = await importHDRLoader();
+    if(!HDRLoader){
+      setStatus('HDR loader not available in this Three.js build.', 'warn');
+      logDiag('Could not import RGBELoader/HDRLoader.');
+      return;
+    }
+
+    const urls = {
+      venice: 'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr',
+      neutral: 'https://threejs.org/examples/textures/equirectangular/royal_esplanade_1k.hdr'
+    };
+    const url = urls[kind] || urls.venice;
+
+    setStatus('Loading HDR environment…', 'warn');
+    logDiag('HDR: ' + url);
+
+    new HDRLoader().load(url, (tex)=>{
+      const envMap = pmrem.fromEquirectangular(tex).texture;
+      tex.dispose();
+      state.envMap = envMap;
+
+      scene.environment = envMap;
+      if(state.background){
+        scene.background = envMap;
+      }else{
+        scene.background = new THREE.Color(0x070a12);
+      }
+      setStatus('HDR environment ready.', 'ok');
+    }, undefined, (err)=>{
+      setStatus('Failed to load HDR.', 'bad');
+      logDiag('HDR ERROR: ' + (err?.message || err));
+    });
+  }
+
+  // ---------- UI Toggles ----------
+  function setMode(mode){
+    state.mode = mode;
+    modeTag.textContent = mode;
+    clearMeasurement();
+    renderer.clippingPlanes = [];
+
+    if(mode === 'measure'){
+      state.measure.active = true;
+      tControls.detach();
+    }else if(mode === 'clip'){
+      state.clipPlaneEnabled = true;
+      renderer.clippingPlanes = [ state.clipPlane ];
+      tControls.detach();
+    }else{
+      state.clipPlaneEnabled = false;
+      state.measure.active = false;
+      if(['move','rotate','scale'].includes(mode) && state.selected){
+        tControls.attach(state.selected);
+        if(mode === 'move') tControls.setMode('translate');
+        if(mode === 'rotate') tControls.setMode('rotate');
+        if(mode === 'scale') tControls.setMode('scale');
+      }else{
+        tControls.detach();
+      }
+    }
+  }
+
+  modeSelect.addEventListener('change', ()=>{
+    setMode(modeSelect.value);
+  });
+
+  btnToggleGrid.addEventListener('click', ()=>{
+    state.grid = !state.grid;
+    grid.visible = state.grid;
+    btnToggleGrid.textContent = `Grid: ${state.grid ? 'ON' : 'OFF'}`;
+  });
+  btnToggleAxes.addEventListener('click', ()=>{
+    state.axes = !state.axes;
+    axes.visible = state.axes;
+    btnToggleAxes.textContent = `Axes: ${state.axes ? 'ON' : 'OFF'}`;
+  });
+  btnToggleOutline.addEventListener('click', ()=>{
+    state.outline = !state.outline;
+    outlinePass.selectedObjects = (state.outline && state.selected) ? [state.selected] : [];
+    btnToggleOutline.textContent = `Outline: ${state.outline ? 'ON' : 'OFF'}`;
+  });
+  btnToggleAutoRotate.addEventListener('click', ()=>{
+    state.autoRotate = !state.autoRotate;
+    btnToggleAutoRotate.textContent = `Auto-rotate: ${state.autoRotate ? 'ON' : 'OFF'}`;
+  });
+  btnToggleWire.addEventListener('click', ()=>{
+    state.wireframe = !state.wireframe;
+    btnToggleWire.textContent = `Wireframe: ${state.wireframe ? 'ON' : 'OFF'}`;
+    applyViewOverrides();
+  });
+  btnToggleNormals.addEventListener('click', ()=>{
+    state.normals = !state.normals;
+    btnToggleNormals.textContent = `Normals: ${state.normals ? 'ON' : 'OFF'}`;
+    applyViewOverrides();
+  });
+
+  btnToggleShadows.addEventListener('click', ()=>{
+    state.shadows = !state.shadows;
+    renderer.shadowMap.enabled = state.shadows;
+    btnToggleShadows.textContent = `Shadows: ${state.shadows ? 'ON' : 'OFF'}`;
+  });
+  btnToggleBg.addEventListener('click', ()=>{
+    state.background = !state.background;
+    btnToggleBg.textContent = `Background: ${state.background ? 'ON' : 'OFF'}`;
+    if(state.background){
+      if(state.envMap) scene.background = state.envMap;
+      else scene.background = new THREE.Color(0x070a12);
+    }else{
+      scene.background = new THREE.Color(0x070a12);
+    }
+  });
+
+  exposure.addEventListener('input', ()=>{
+    const v = parseFloat(exposure.value);
+    exposureVal.textContent = v.toFixed(2);
+    renderer.toneMappingExposure = v; // exposure control is typically on renderer [5](https://www.ramijames.com/learn-threejs/lighting/environment-maps)
+  });
+  ambI.addEventListener('input', ()=>{
+    const v = parseFloat(ambI.value);
+    ambIVal.textContent = v.toFixed(2);
+    ambient.intensity = v;
+  });
+  dirI.addEventListener('input', ()=>{
+    const v = parseFloat(dirI.value);
+    dirIVal.textContent = v.toFixed(2);
+    dir.intensity = v;
+  });
+
+  envSelect.addEventListener('change', ()=>{
+    setEnvironment(envSelect.value);
+  });
+
+  clipSlider.addEventListener('input', ()=>{
+    const v = parseFloat(clipSlider.value);
+    clipVal.textContent = v.toFixed(2);
+    // Plane is n·x + constant = 0; changing constant slides plane
+    state.clipPlane.constant = -v;
+  });
+
+  // ---------- Inspector editing ----------
+  function applySelectedTransformsFromInputs(){
+    const obj = state.selected;
+    if(!obj) return;
+    obj.position.set(parseFloat(px.value), parseFloat(py.value), parseFloat(pz.value));
+    const s = parseFloat(ps.value);
+    if(Number.isFinite(s) && s > 0) obj.scale.setScalar(s);
+    obj.name = objName.value || obj.name;
+    refreshTree();
+  }
+  ;[px,py,pz,ps,objName].forEach(el=>{
+    el.addEventListener('change', applySelectedTransformsFromInputs);
+  });
+
+  function setMatHex(hex){
+    matColorHex.textContent = hex.toLowerCase();
+  }
+  matColor.addEventListener('input', ()=>{
+    setMatHex(matColor.value);
+    applyMaterialOverride();
+  });
+  matMode.addEventListener('change', applyMaterialOverride);
+  metal.addEventListener('input', applyMaterialOverride);
+  rough.addEventListener('input', applyMaterialOverride);
+
+  function applyMaterialOverride(){
+    const obj = state.selected;
+    if(!obj) return;
+
+    const mode = matMode.value;
+    const color = new THREE.Color(matColor.value);
+    const m = parseFloat(metal.value);
+    const r = parseFloat(rough.value);
+
+    obj.traverse(o=>{
+      if(!o.isMesh) return;
+
+      if(mode === 'keep'){
+        // do nothing
+        return;
+      }
+      let newMat;
+      const common = { color, metalness: m, roughness: r };
+      if(mode === 'standard') newMat = new THREE.MeshStandardMaterial(common);
+      else if(mode === 'physical') newMat = new THREE.MeshPhysicalMaterial({ ...common, clearcoat: 0.5, clearcoatRoughness: 0.2 });
+      else if(mode === 'lambert') newMat = new THREE.MeshLambertMaterial({ color });
+      else newMat = new THREE.MeshBasicMaterial({ color });
+
+      newMat.wireframe = state.wireframe;
+      o.material = newMat;
+    });
+    applyViewOverrides();
+  }
+
+  function applyViewOverrides(){
+    for(const root of state.modelRoots){
+      root.traverse(o=>{
+        if(!o.isMesh) return;
+
+        // If normals view: show normal material
+        if(state.normals){
+          o.userData.__savedMat = o.userData.__savedMat || o.material;
+          o.material = new THREE.MeshNormalMaterial();
+          o.material.wireframe = false;
+        }else{
+          if(o.userData.__savedMat){
+            o.material = o.userData.__savedMat;
+            o.userData.__savedMat = null;
+          }
+          // Wireframe toggle on current mat
+          if(o.material) o.material.wireframe = state.wireframe;
+        }
+      });
+    }
+  }
+
+  btnDelete.addEventListener('click', ()=>{
+    const obj = state.selected;
+    if(!obj) return;
+    // Remove the topmost model root that contains it
+    let rootToRemove = null;
+    for(const root of state.modelRoots){
+      if(root === obj || root.children.includes(obj) || root.getObjectById(obj.id)){
+        rootToRemove = root;
+        break;
+      }
+    }
+    if(rootToRemove){
+      scene.remove(rootToRemove);
+      state.modelRoots = state.modelRoots.filter(r=>r !== rootToRemove);
+    }else{
+      obj.parent?.remove(obj);
+    }
+    setSelected(null);
+    refreshTree();
+  });
+
+  btnDuplicate.addEventListener('click', ()=>{
+    const obj = state.selected;
+    if(!obj) return;
+    const clone = obj.clone(true);
+    clone.position.x += 0.25;
+    clone.name = (obj.name || obj.type) + '_copy';
+    scene.add(clone);
+    state.modelRoots.push(clone);
+    refreshTree();
+    setSelected(findFirstMesh(clone) || clone);
+  });
+
+  // ---------- Tree ----------
+  function refreshTree(){
+    tree.innerHTML = '';
+    if(!state.modelRoots.length){
+      const empty = document.createElement('div');
+      empty.className = 'small';
+      empty.textContent = 'No models loaded.';
+      tree.appendChild(empty);
+      return;
+    }
+
+    state.modelRoots.forEach((root, idx)=>{
+      const item = document.createElement('div');
+      item.className = 'treeItem' + (state.selected && (root === state.selected || root.getObjectById(state.selected.id)) ? ' active' : '');
+      const left = document.createElement('div');
+      left.style.display = 'flex';
+      left.style.flexDirection = 'column';
+      left.style.gap = '2px';
+
+      const title = document.createElement('div');
+      title.textContent = root.name || `Model ${idx+1}`;
+      title.style.fontWeight = '750';
+      title.style.fontSize = '12px';
+
+      const sub = document.createElement('div');
+      sub.className = 'small';
+      const counts = countMeshes(root);
+      sub.textContent = `${counts.meshes} meshes`;
+
+      left.appendChild(title);
+      left.appendChild(sub);
+
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = 'root';
+
+      item.appendChild(left);
+      item.appendChild(tag);
+
+      item.addEventListener('click', ()=>{
+        setSelected(findFirstMesh(root) || root);
+      });
+
+      tree.appendChild(item);
+    });
+  }
+
+  function countMeshes(root){
+    let meshes = 0;
+    root.traverse(o=>{ if(o.isMesh) meshes++; });
+    return { meshes };
+  }
+
+  btnRefreshTree.addEventListener('click', refreshTree);
+
+  // ---------- Framing / Camera ----------
+  function frameObject(obj){
+    if(!obj) return;
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+
+    const maxSize = Math.max(size.x, size.y, size.z);
+    const fitHeightDistance = maxSize / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
+    const fitWidthDistance = fitHeightDistance / camera.aspect;
+    const distance = 1.2 * Math.max(fitHeightDistance, fitWidthDistance);
+
+    const dir = new THREE.Vector3()
+      .subVectors(camera.position, controls.target)
+      .normalize()
+      .multiplyScalar(distance);
+
+    controls.target.copy(center);
+    camera.position.copy(center).add(dir);
+    camera.near = distance / 100;
+    camera.far = distance * 100;
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
+
+  btnCenter.addEventListener('click', ()=>{
+    if(state.selected) frameObject(state.selected);
+  });
+
+  btnResetCam.addEventListener('click', ()=>{
+    controls.target.set(0, 0.6, 0);
+    camera.position.set(2.6, 1.6, 3.2);
+    camera.near = 0.01;
+    camera.far = 2000;
+    camera.updateProjectionMatrix();
+    controls.update();
+  });
+
+  // ---------- Screenshot ----------
+  btnScreenshot.addEventListener('click', ()=>{
+    try{
+      const a = document.createElement('a');
+      a.download = '3d-lab-screenshot.png';
+      a.href = renderer.domElement.toDataURL('image/png');
+      a.click();
+      setStatus('Screenshot saved.', 'ok');
+    }catch(e){
+      setStatus('Screenshot failed.', 'bad');
+      logDiag('Screenshot error: ' + e.message);
+    }
+  });
+
+  // ---------- Rebuild / Reset Lab ----------
+  function rebuildLab(){
+    setStatus('Rebuilding lab…', 'warn');
+    clearModels();
+    setSelected(null);
+    controls.reset();
+    btnResetCam.click();
+    // Restore defaults
+    state.grid = true; grid.visible = true; btnToggleGrid.textContent = 'Grid: ON';
+    state.axes = true; axes.visible = true; btnToggleAxes.textContent = 'Axes: ON';
+    state.outline = true; btnToggleOutline.textContent = 'Outline: ON';
+    state.autoRotate = false; btnToggleAutoRotate.textContent = 'Auto-rotate: OFF';
+    state.wireframe = false; btnToggleWire.textContent = 'Wireframe: OFF';
+    state.normals = false; btnToggleNormals.textContent = 'Normals: OFF';
+    state.shadows = true; renderer.shadowMap.enabled = true; btnToggleShadows.textContent = 'Shadows: ON';
+    state.background = true; btnToggleBg.textContent = 'Background: ON';
+
+    exposure.value = '1.0'; exposure.dispatchEvent(new Event('input'));
+    ambI.value = '0.6'; ambI.dispatchEvent(new Event('input'));
+    dirI.value = '2.0'; dirI.dispatchEvent(new Event('input'));
+
+    envSelect.value = 'venice';
+    setEnvironment('venice');
+
+    modeSelect.value = 'select';
+    setMode('select');
+
+    logDiag('--- LAB REBUILT ---');
+    setStatus('Lab rebuilt. Ready.', 'ok');
+  }
+  btnRebuild.addEventListener('click', rebuildLab);
+
+  // ---------- Load sample & clear ----------
+  btnLoadSample.addEventListener('click', ()=> loadSample(sampleSelect.value));
+  btnClearModels.addEventListener('click', clearModels);
+
+  // ---------- Dump JSON (simple) ----------
+  btnDump.addEventListener('click', ()=>{
+    const dump = {
+      models: state.modelRoots.map(r=>({ name:r.name, position:r.position.toArray(), scale:r.scale.toArray() })),
+      mode: state.mode,
+      toggles: {
+        grid: state.grid, axes: state.axes, outline: state.outline, autoRotate: state.autoRotate,
+        wireframe: state.wireframe, normals: state.normals, shadows: state.shadows, background: state.background
+      },
+      exposure: renderer.toneMappingExposure,
+      env: envSelect.value
+    };
+    console.log('3D Lab Dump', dump);
+    logDiag('Dumped to console as "3D Lab Dump".');
+    setStatus('Dumped JSON to console.', 'ok');
+  });
+
+  // ---------- Interaction ----------
+  renderer.domElement.addEventListener('pointerdown', (e)=>{
+    // Ignore UI overlay clicks (canvas only anyway)
+    if(state.mode === 'measure'){
+      const hit = pickObject(e.clientX, e.clientY);
+      if(hit){
+        if(!state.measure.p1){
+          state.measure.p1 = hit.point.clone();
+          setStatus('Measure: pick 2nd point…', 'warn');
+        }else{
+          state.measure.p2 = hit.point.clone();
+          updateMeasurementLine();
+          const d = state.measure.p1.distanceTo(state.measure.p2);
+          setStatus(`Distance: ${d.toFixed(3)} units`, 'ok');
+          logDiag(`Measured distance: ${d.toFixed(6)}`);
+          // keep as one measurement; next click resets
+          state.measure.p1 = null;
+          state.measure.p2 = null;
+        }
+      }
+      return;
+    }
+
+    if(state.mode === 'clip'){
+      // selection still allowed
+    }
+
+    // Selection
+    const hit = pickObject(e.clientX, e.clientY);
+    if(hit){
+      setSelected(hit.object);
+      setStatus('Selected.', 'ok');
+    }else{
+      setSelected(null);
+      setStatus('No selection.', 'ok');
+    }
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      tControls.detach();
+      setSelected(null);
+      setStatus('Detached.', 'ok');
+    }
+    if(e.key.toLowerCase() === 'w'){ modeSelect.value='move'; setMode('move'); }
+    if(e.key.toLowerCase() === 'e'){ modeSelect.value='rotate'; setMode('rotate'); }
+    if(e.key.toLowerCase() === 'r'){ modeSelect.value='scale'; setMode('scale'); }
+  });
+
+  // ---------- Resize ----------
+  function onResize(){
+    const w = viewportWrap.clientWidth;
+    const h = viewportWrap.clientHeight;
+    renderer.setSize(w, h, false);
+    composer.setSize(w, h);
+
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+
+    outlinePass.setSize(w, h);
+
+    fxaaPass.material.uniforms['resolution'].value.set(1/(w*renderer.getPixelRatio()), 1/(h*renderer.getPixelRatio()));
+  }
+  window.addEventListener('resize', onResize);
+  onResize();
+
+  // ---------- Animation loop ----------
+  const clock = new THREE.Clock();
+
+  function updateFPS(dt){
+    const fps = 1 / Math.max(dt, 1e-6);
+    state.fpsSMA.push(fps);
+    if(state.fpsSMA.length > 20) state.fpsSMA.shift();
+    const avg = state.fpsSMA.reduce((a,b)=>a+b,0) / state.fpsSMA.length;
+    fpsPill.textContent = `FPS: ${avg.toFixed(0)}`;
+  }
+
+  function animate(){
+    stats.begin();
+
+    const dt = clock.getDelta();
+    updateFPS(dt);
+
+    if(state.autoRotate){
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 1.2;
+    }else{
+      controls.autoRotate = false;
+    }
+    controls.update();
+
+    // update mixers
+    for(const m of state.mixers){
+      m.update(dt);
+    }
+
+    // Render with postprocessing if outline enabled, else direct
+    if(state.outline){
+      composer.render();
+    }else{
+      renderer.render(scene, camera);
+    }
+
+    stats.end();
+    requestAnimationFrame(animate);
+  }
+
+  // ---------- Initial boot ----------
+  (async function boot(){
+    setStatus('Booting…', 'warn');
+    setMatHex(matColor.value);
+
+    // Default environment ON (HDR) for PBR realism (PMREM workflow) [5](https://www.ramijames.com/learn-threejs/lighting/environment-maps)[6](https://threejs.org/examples/webgl_materials_envmaps_hdr.html)
+    await setEnvironment('venice');
+
+    setMode('select');
+    refreshTree();
+    setStatus('Ready. Load a sample or drop a model.', 'ok');
+    animate();
+  })();
+
+</script>
+</body>
+</html>
